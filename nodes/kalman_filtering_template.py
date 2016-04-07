@@ -6,7 +6,7 @@ import numpy as np
 import os, sys
 
 from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float64MultiArray, Float32, Int32, Float64
 from sensor_msgs.msg import PointCloud
 
 import DiscreteTimeKalmanFilter
@@ -36,12 +36,12 @@ class DataAssociator(object):
         
         # Initialize the node
         rospy.init_node('data_associator')
-        self.time_start = time.time()
         
         # Publishers.
-        self.pubTrackedObjects_Float32MultiArray  = rospy.Publisher('/tracking_template/kalman_filtered_points', Float32MultiArray)
+        self.pubTrackedObjects_Float64MultiArray  = rospy.Publisher('/tracking_template/kalman_filtered_points', Float64MultiArray)
         self.pubTrackedObjects_Pose               = rospy.Publisher('/tracking_template/kalman_filtered_pose', PoseWithCovarianceStamped)
         self.pubTrackedObjects_Twist              = rospy.Publisher('/tracking_template/kalman_filtered_twist', TwistWithCovarianceStamped)
+        self.pubTrackedObjects_Test               = rospy.Publisher('/tracking_template/kalman_filtered_test', Float64)
         
         # Subscriptions.
         self.subImage = rospy.Subscriber('/tracking_template/tracked_points', PointCloud, self.point_tracker)
@@ -62,7 +62,7 @@ class DataAssociator(object):
             xhat, P, K = self.kalman_filter.update( measurement ) # run kalman filter
         
         ### Publish the results as a simple array
-        float_time = pointcloud.header.stamp.secs + pointcloud.header.stamp.nsecs*1e-9
+        float_time = float(pointcloud.header.stamp.secs) + float(pointcloud.header.stamp.nsecs)*1e-9
         x = xhat.item(0) # xhat is a matrix, .item() gives you the actual value
         xdot = xhat.item(1)
         y = xhat.item(2)
@@ -71,9 +71,12 @@ class DataAssociator(object):
         data = [float_time, x, xdot, y, ydot]
         data.extend(p_vector)
         
-        float32msg = Float32MultiArray()
-        float32msg.data = data
-        self.pubTrackedObjects_Float32MultiArray.publish( float32msg )
+        float64msg = Float64MultiArray()
+        float64msg.data = data
+        now = rospy.get_time()
+        self.time_start = now
+        self.pubTrackedObjects_Float64MultiArray.publish( float64msg )
+        
         ###
         
         ### Publish the results as a ROS type pose (positional information)
